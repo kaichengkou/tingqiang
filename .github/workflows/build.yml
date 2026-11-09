@@ -1,0 +1,174 @@
+# 听腔的自动检查和构建。
+# - 每次推送和拉取请求：单元测试、语法检查。
+# - 推送 v 开头的标签（如 v0.8.1）：再构建 Windows 安装程序和安卓 APK，发布到 Releases。
+# - 在 Actions 页面手动运行：构建两个安装包，附在这次运行里保留 7 天，不发布。
+name: 检查与构建
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  check:
+    name: 单元测试与语法检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: 标签要和版本号一致
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::标签 $GITHUB_REF_NAME 和 package.json 的版本 $version 不一致"
+            exit 1
+          fi
+      - run: npm test
+      - run: npm run check
+
+  windows:
+    name: Windows 安装程序
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: 构建目录
+        shell: pwsh
+        run: Add-Content $env:GITHUB_ENV "TINGQIANG_BUILD_DIR=$env:RUNNER_TEMP\tingqiang-build"
+      - name: 分离模型缓存
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}\tingqiang-build\cache
+          key: windows-cache-${{ hashFiles('dist/models/separation.json') }}
+      - name: Electron 缓存
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-${{ hashFiles('desktop/package-lock.json') }}
+      - name: 构建
+        run: node scripts/build-desktop.mjs installer
+      - name: 换成英文文件名
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          New-Item -ItemType Directory -Force upload | Out-Null
+          Get-ChildItem release -Filter *.exe | Select-Object -First 1 | Move-Item -Destination "upload\TingQiang-Setup-$version.exe"
+          Get-ChildItem upload
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: upload/*.exe
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  android:
+    name: 安卓 APK
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: 构建目录
+        run: echo "TINGQIANG_BUILD_DIR=$RUNNER_TEMP/tingqiang-build" >> "$GITHUB_ENV"
+      - name: Android SDK 组件
+        run: |
+          # `yes` is killed when sdkmanager exits, which would fail the step under pipefail.
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;36.1.0" "platforms;android-36" > /dev/null
+          test -x "$ANDROID_HOME/build-tools/36.1.0/aapt2"
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+      - name: 分离模型和 ONNX Runtime 缓存
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/tingqiang-build/cache
+          key: android-cache-${{ hashFiles('dist/models/separation.json', 'scripts/build-android.mjs') }}
+      - name: 签名密钥
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.jks"
+            echo "TINGQIANG_KEYSTORE=$RUNNER_TEMP/signing.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::仓库没有设置 ANDROID_KEYSTORE_BASE64，这次的 APK 用一次性密钥签名，不能覆盖安装手机上已有的听腔。"
+          fi
+      - name: 构建
+        env:
+          TINGQIANG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TINGQIANG_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'development' }}
+        run: node scripts/build-android.mjs apk
+      - name: 换成英文文件名
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mkdir -p upload
+          mv release/*.apk "upload/TingQiang-$version.apk"
+          ls -la upload
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: upload/*.apk
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  release:
+    name: 发布到 Releases
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: upload
+          merge-multiple: true
+      - name: 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<EOF
+          ## 下载
+
+          - **Windows 电脑**：下载 \`TingQiang-Setup-$version.exe\`，双击安装。安装程序没有数字签名，Windows 可能提示「已保护你的电脑」，点「更多信息」→「仍要运行」。
+          - **安卓手机**：下载 \`TingQiang-$version.apk\`，在手机上打开安装；第一次需要允许「安装未知应用」。需要 Android 8.0 以上的 64 位手机。
+
+          两个安装包都由 GitHub Actions 从这个版本的源码构建。
+          EOF
+          assets=("upload/TingQiang-Setup-$version.exe#听腔 Windows 安装程序 $version" "upload/TingQiang-$version.apk#听腔 安卓 App $version")
+          # The release may already exist if it was created on the website together with its tag; then only add the files.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "${assets[@]}"
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "听腔 $version" --notes-file notes.md "${assets[@]}"
+          fi

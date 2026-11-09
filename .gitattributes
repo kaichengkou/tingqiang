@@ -1,0 +1,8 @@
+# Text is stored and checked out with LF line endings, as the files already are; Windows batch files need CRLF to run.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.onnx binary
+*.wasm binary
+*.ico binary
+*.png binary
+*.jpg binary

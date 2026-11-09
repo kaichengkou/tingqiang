@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The page's paper and red (dist/style.css), so nothing flashes between the system and the page. -->
+    <color name="paper">#F5F3ED</color>
+    <color name="red">#A34132</color>
+</resources>

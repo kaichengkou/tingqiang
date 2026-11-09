@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">听腔</string>
+    <string name="busy_channel">播放与处理</string>
+    <string name="busy_channel_description">锁屏或切到其他应用时，播放和减弱伴奏会继续，这里显示进度。</string>
+</resources>

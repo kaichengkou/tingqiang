@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.runtime/
+node_modules/
+release/
+.env
+.DS_Store
+# Local tool settings, and what Windows and OneDrive leave behind
+.claude/
+desktop.ini
+Thumbs.db
+~$*
+*.log

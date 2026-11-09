@@ -1,0 +1,4 @@
+-r requirements.txt
+demucs==4.0.1
+soundfile>=0.12,<1
+# Install matching CPU (or CUDA) torch + torchaudio first; see README.

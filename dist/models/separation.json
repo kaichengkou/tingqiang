@@ -1,0 +1,17 @@
+{
+  "name": "UVR_MDXNET_KARA_2",
+  "source": "https://github.com/Anjok07/ultimatevocalremovergui",
+  "url": "https://huggingface.co/AI4future/RVC/resolve/1e08b7b9fbf50c7bd425e037412d81d712457f8c/UVR_MDXNET_KARA_2.onnx",
+  "bytes": 52786726,
+  "sha256": "bf32e15105a09c0f7dddd2b67346146334d6f3ecb399ed7638eba2ab07cbf5f4",
+  "primaryStem": "instrumental",
+  "sampleRate": 44100,
+  "parameters": {
+    "compensate": 1.065,
+    "mdx_dim_f_set": 2048,
+    "mdx_dim_t_set": 8,
+    "mdx_n_fft_scale_set": 5120,
+    "primary_stem": "Instrumental"
+  },
+  "license": "MIT, as declared by the upstream Hugging Face model repository"
+}

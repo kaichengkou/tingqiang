@@ -1,0 +1,36 @@
+{
+  "audio_sha256": "24c2edf51a948a2ac7bcaf340c920d8688c135e29df63111bfb5ce5eb865acce",
+  "spectral_anchors": [
+    {
+      "t": 0.65,
+      "hz": 315,
+      "tolerance_semitones": 1.1
+    },
+    {
+      "t": 1.05,
+      "hz": 382,
+      "tolerance_semitones": 0.75
+    },
+    {
+      "t": 4.25,
+      "hz": 334,
+      "tolerance_semitones": 0.9
+    },
+    {
+      "t": 5.3,
+      "hz": 326,
+      "tolerance_semitones": 0.5
+    },
+    {
+      "t": 12.05,
+      "hz": 328,
+      "tolerance_semitones": 0.5
+    },
+    {
+      "t": 17.8,
+      "hz": 346,
+      "tolerance_semitones": 0.5
+    }
+  ],
+  "note": "Sparse spectral checks, not an annotated full pitch ground truth; audio is not distributed."
+}

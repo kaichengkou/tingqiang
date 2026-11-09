@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 听腔 for Android: one WebView showing dist/, the same page as the browser and Windows builds.
+     Built without Gradle by scripts/build-android.mjs; versions and SDK levels are filled in there. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.tingqiang.app">
+
+    <!-- No INTERNET permission: the app cannot reach the network at all, so recordings never leave the phone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- WebView needs this as well as RECORD_AUDIO before it opens the microphone. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Separation keeps the processor awake while the screen is off; playback is kept awake by the audio system. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Declared, never asked for: the work goes on without it, and a prompt on first play would be one more hurdle.
+         Whoever wants the progress in the notification shade can switch it on in the system settings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- ONNX Runtime's library (NativeModel) is stored compressed and unpacked on install, which keeps the download smaller.
+         Its own manifest asks for INTERNET and adds a telemetry provider; neither is merged into this one.
+         Backups are off: Android caps them at 25 MB, and a partial copy of the practice database is worse than none.
+         Practice packages (.tqproj) are the way to move practice between phones. -->
+    <application
+        android:allowBackup="false"
+        android:appCategory="audio"
+        android:enableOnBackInvokedCallback="true"
+        android:extractNativeLibs="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.TingQiang">
+
+        <!-- configChanges: turning the phone or resizing must not reload the page and stop playback. -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection|colorMode|touchscreen|mcc|mnc"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 用「听腔」打开 a recording from a file manager or a chat app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+            <!-- Practice packages and lyrics have no registered type, so they are recognised by name. Android's
+                 pattern matching stops at the first dot, hence one pattern per number of dots before the extension. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.tqproj" />
+                <data android:pathPattern=".*\\..*\\.tqproj" />
+                <data android:pathPattern=".*\\..*\\..*\\.tqproj" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.tqproj" />
+                <data android:pathPattern=".*\\.lrc" />
+                <data android:pathPattern=".*\\..*\\.lrc" />
+                <data android:pathPattern=".*\\..*\\..*\\.lrc" />
+            </intent-filter>
+            <!-- 分享 → 听腔 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".BusyService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|mediaProcessing|dataSync"
+            android:stopWithTask="true" />
+
+        <provider
+            android:name=".SharedFiles"
+            android:authorities="com.tingqiang.app.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

@@ -1,0 +1,12 @@
+{
+  "architecture": "CREPE tiny",
+  "source": "https://github.com/maxrmorrison/torchcrepe",
+  "source_version": "0.0.24",
+  "license": "MIT",
+  "opset": 17,
+  "sample_rate": 16000,
+  "frame_samples": 1024,
+  "pitch_bins": 360,
+  "weights_sha256": "d4993eea36ed1a0ad9ac549c740dae5265b049ce72004f00c2f59e01c0be8432",
+  "onnx_sha256": "79c8698e40f39f9b353aacbb82aadd4e641ef356b8997917b7a541802b9e0fe3"
+}
